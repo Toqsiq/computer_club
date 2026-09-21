@@ -1,63 +1,47 @@
-from typing import List, Optional
-from psycopg2.extras import RealDictCursor
-from app.db import get_connection
+from typing import Generic, List, Optional, Type, TypeVar
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db import get_session
+
+ModelT = TypeVar("ModelT")
 
 
-class BaseRepository:
-    table_name: str = ""
+class BaseRepository(Generic[ModelT]):
+    model: Type[ModelT]
 
-    def get_all(self) -> List[dict]:
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(f"SELECT * FROM {self.table_name}")
-                return cur.fetchall()
+    def get_all(self) -> List[ModelT]:
+        with get_session() as session:
+            return list(session.scalars(select(self.model)).all())
 
-    def get_by_id(self, id: int) -> Optional[dict]:
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    f"SELECT * FROM {self.table_name} WHERE id = %s",
-                    (id,)
-                )
-                return cur.fetchone()
+    def get_by_id(self, id: int) -> Optional[ModelT]:
+        with get_session() as session:
+            return session.get(self.model, id)
 
-    def create(self, data: dict) -> dict:
-        columns = ", ".join(data.keys())
-        placeholders = ", ".join(["%s"] * len(data))
-        values = list(data.values())
+    def create(self, data: dict) -> ModelT:
+        with get_session() as session:
+            obj = self.model(**data)
+            session.add(obj)
+            session.flush()
+            session.refresh(obj)
+            return obj
 
-        query = f"""
-            INSERT INTO {self.table_name} ({columns})
-            VALUES ({placeholders})
-            RETURNING *
-        """
-
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(query, values)
-                return cur.fetchone()
-
-    def update(self, id: int, data: dict) -> Optional[dict]:
-        set_clause = ", ".join([f"{key} = %s" for key in data.keys()])
-        values = list(data.values()) + [id]
-
-        query = f"""
-            UPDATE {self.table_name}
-            SET {set_clause}
-            WHERE id = %s
-            RETURNING *
-        """
-
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(query, values)
-                return cur.fetchone()
+    def update(self, id: int, data: dict) -> Optional[ModelT]:
+        with get_session() as session:
+            obj = session.get(self.model, id)
+            if obj is None:
+                return None
+            for key, value in data.items():
+                setattr(obj, key, value)
+            session.flush()
+            session.refresh(obj)
+            return obj
 
     def delete(self, id: int) -> bool:
-        with get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    f"DELETE FROM {self.table_name} WHERE id = %s",
-                    (id,)
-                )
-                return cur.rowcount > 0
+        with get_session() as session:
+            obj = session.get(self.model, id)
+            if obj is None:
+                return False
+            session.delete(obj)
+            return True

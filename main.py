@@ -1,14 +1,18 @@
-from app.repositories import TariffRepository, ServiceRepository
+from app.repositories import ServiceRepository, TariffRepository
 
-tariff_repo = TariffRepository()
-service_repo = ServiceRepository()
 
-print("=== Тарифы ===")
-tariffs = tariff_repo.get_all()
-for t in tariffs:
-    print(t)
+def main() -> None:
+    tariff_repo = TariffRepository()
+    service_repo = ServiceRepository()
 
-print("\n=== Услуги ===")
-services = service_repo.get_all()
-for s in services:
-    print(s)
+    print("=== Тарифы ===")
+    for tariff in tariff_repo.get_all():
+        print(f"{tariff.id}: {tariff.name} — {tariff.price} ₽")
+
+    print("\n=== Услуги ===")
+    for service in service_repo.get_all():
+        print(f"{service.id}: {service.name} — {service.price} ₽")
+
+
+if __name__ == "__main__":
+    main()

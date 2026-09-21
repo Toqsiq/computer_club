@@ -1,16 +1,13 @@
-from typing import List
-from psycopg2.extras import RealDictCursor
+from sqlalchemy import select
+
+from app.models import Tariff
+from app.db import get_session
 from app.repositories.base import BaseRepository
-from app.db import get_connection
 
 
-class TariffRepository(BaseRepository):
-    table_name = "tariffs"
+class TariffRepository(BaseRepository[Tariff]):
+    model = Tariff
 
-    def get_active(self) -> List[dict]:
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    f"SELECT * FROM {self.table_name} WHERE is_active = true"
-                )
-                return cur.fetchall()
+    def get_active(self) -> list[Tariff]:
+        with get_session() as session:
+            return list(session.scalars(select(Tariff).where(Tariff.is_active.is_(True))).all())

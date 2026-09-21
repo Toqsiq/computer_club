@@ -1,29 +1,25 @@
-from typing import List
-from psycopg2.extras import RealDictCursor
+from sqlalchemy import select
+
+from app.db import get_session
+from app.models import Computer, ComputerStatus
 from app.repositories.base import BaseRepository
-from app.db import get_connection
 
 
-class ComputerRepository(BaseRepository):
-    table_name = "computers"
+class ComputerRepository(BaseRepository[Computer]):
+    model = Computer
 
-    def get_by_zone(self, zone_id: int) -> List[dict]:
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    f"SELECT * FROM {self.table_name} WHERE zone_id = %s",
-                    (zone_id,)
+    def get_by_zone(self, zone_id: int) -> list[Computer]:
+        with get_session() as session:
+            return list(session.scalars(select(Computer).where(Computer.zone_id == zone_id)).all())
+
+    def get_available(self) -> list[Computer]:
+        with get_session() as session:
+            stmt = (
+                select(Computer)
+                .join(Computer.status)
+                .where(
+                    ComputerStatus.name == "available",
+                    Computer.is_active.is_(True),
                 )
-                return cur.fetchall()
-
-    def get_available(self) -> List[dict]:
-        """Компьютеры со статусом 'available'"""
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("""
-                    SELECT c.* 
-                    FROM computers c
-                    JOIN computer_statuses s ON c.status_id = s.id
-                    WHERE s.name = 'available' AND c.is_active = true
-                """)
-                return cur.fetchall()
+            )
+            return list(session.scalars(stmt).all())

@@ -1,25 +1,23 @@
-import psycopg2
 from contextlib import contextmanager
-from app.config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session as OrmSession, sessionmaker
+
+from app.config import DATABASE_URL
+
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
 @contextmanager
-def get_connection():
-    conn = None
+def get_session():
+    """Return an ORM session with automatic commit/rollback/close."""
+    session: OrmSession = SessionLocal()
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
-        yield conn
-        conn.commit()
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
     finally:
-        if conn:
-            conn.close()
+        session.close()

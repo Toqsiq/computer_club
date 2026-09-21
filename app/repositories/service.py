@@ -1,16 +1,13 @@
-from typing import List
-from psycopg2.extras import RealDictCursor
+from sqlalchemy import select
+
+from app.db import get_session
+from app.models import Service
 from app.repositories.base import BaseRepository
-from app.db import get_connection
 
 
-class ServiceRepository(BaseRepository):
-    table_name = "services"
+class ServiceRepository(BaseRepository[Service]):
+    model = Service
 
-    def get_active(self) -> List[dict]:
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    f"SELECT * FROM {self.table_name} WHERE is_active = true"
-                )
-                return cur.fetchall()
+    def get_active(self) -> list[Service]:
+        with get_session() as session:
+            return list(session.scalars(select(Service).where(Service.is_active.is_(True))).all())

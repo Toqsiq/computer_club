@@ -1,19 +1,18 @@
-from typing import List
-from psycopg2.extras import RealDictCursor
+from sqlalchemy import select
+
+from app.db import get_session
+from app.models import Session, SessionStatus
 from app.repositories.base import BaseRepository
-from app.db import get_connection
 
 
-class SessionRepository(BaseRepository):
-    table_name = "sessions"
+class SessionRepository(BaseRepository[Session]):
+    model = Session
 
-    def get_active_sessions(self) -> List[dict]:
-        with get_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("""
-                    SELECT s.* 
-                    FROM sessions s
-                    JOIN session_statuses st ON s.status_id = st.id
-                    WHERE st.name = 'active'
-                """)
-                return cur.fetchall()
+    def get_active_sessions(self) -> list[Session]:
+        with get_session() as session:
+            stmt = (
+                select(Session)
+                .join(Session.status)
+                .where(SessionStatus.name == "active")
+            )
+            return list(session.scalars(stmt).all())
