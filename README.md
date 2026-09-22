@@ -19,14 +19,6 @@ python seed.py
 python main.py
 ```
 
-Настройки PostgreSQL берутся из `.env`:
 
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=computer_club_new
-DB_USER=postgres
-DB_PASSWORD=123
-```
 
 Также можно указать готовый `DATABASE_URL`.
